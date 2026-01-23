@@ -33,6 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.invalidateConfigCache = invalidateConfigCache;
 exports.readConfig = readConfig;
 const vscode = __importStar(require("vscode"));
 const exclude_1 = require("./exclude");
@@ -45,17 +46,15 @@ const DEFAULT_DELIMITER_OPTIONS = ['##', '#%%', '# %%'];
 const DEFAULT_EXCLUDE_PATTERNS = ['**/src/**', '**/test/**', '**/deps/**', '**/docs/**'];
 const warnedKeys = new Set();
 function warnOnce(key, message) {
-    if (warnedKeys.has(key)) {
+    if (warnedKeys.has(key))
         return;
-    }
     warnedKeys.add(key);
     vscode.window.showWarningMessage(message);
 }
 function getStringArray(config, key) {
     const raw = config.get(key);
-    if (!Array.isArray(raw)) {
+    if (!Array.isArray(raw))
         return [];
-    }
     return raw
         .filter((value) => typeof value === 'string')
         .map((value) => value.trim())
@@ -134,7 +133,14 @@ function parseMultiCursorMode(value) {
 function parseCodeLensMode(value) {
     return value === 'always' || value === 'current' || value === 'never' ? value : 'always';
 }
+let cachedConfig = null;
+function invalidateConfigCache() {
+    cachedConfig = null;
+}
 function readConfig() {
+    if (cachedConfig) {
+        return cachedConfig;
+    }
     const config = vscode.workspace.getConfiguration('juliaCellHighlighter');
     const juliaConfig = vscode.workspace.getConfiguration('julia');
     const enabled = config.get('enabled', true);
@@ -168,7 +174,7 @@ function readConfig() {
         warnOnce('juliaCellDelimiters-partial', 'Julia Cell Highlighter: Some julia.cellDelimiters are invalid and were ignored.');
     }
     if (compiledJulia.regexes.length > 0) {
-        return {
+        cachedConfig = {
             enabled,
             codeLensMode,
             backgroundColor,
@@ -189,6 +195,7 @@ function readConfig() {
             delimiterKey: `julia|${juliaPatterns.join(';')}`,
             delimiterSource: 'julia'
         };
+        return cachedConfig;
     }
     const defaultSelection = parseDefaultDelimiterOptions(config);
     if (defaultSelection.usedFallback) {
@@ -196,7 +203,7 @@ function readConfig() {
     }
     const defaultPatterns = defaultSelection.options.map((option) => DEFAULT_DELIMITER_PATTERNS[option]);
     const compiledDefault = compileRegexes(defaultPatterns);
-    return {
+    cachedConfig = {
         enabled,
         codeLensMode,
         backgroundColor,
@@ -217,5 +224,6 @@ function readConfig() {
         delimiterKey: `default|${defaultSelection.options.join(';')}`,
         delimiterSource: 'default'
     };
+    return cachedConfig;
 }
 //# sourceMappingURL=config.js.map

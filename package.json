@@ -3,30 +3,20 @@
     "displayName": "Julia Cell Highlighter",
     "publisher": "ShakiraChristian",
     "description": "Highlights the current Julia code cell in .jl scripts, aligned with Julia cell delimiters",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "icon": "icon.png",
-    "engines": { "vscode": "^1.108.0" },
+    "engines": { "vscode": "^1.60.0" },
     "repository": {
         "type": "git",
         "url": "https://github.com/abcdvvvv/julia-cell-highlighter.git"
     },
     "homepage": "https://github.com/abcdvvvv/julia-cell-highlighter#readme",
-    "bugs": {
-        "url": "https://github.com/abcdvvvv/julia-cell-highlighter/issues"
-    },
+    "bugs": { "url": "https://github.com/abcdvvvv/julia-cell-highlighter/issues" },
     "categories": [
         "Programming Languages",
         "Visualization"
     ],
-    "keywords": [
-        "julia",
-        "jl",
-        "cell",
-        "code cell",
-        "cell delimiter",
-        "cell marker",
-        "highlight"
-    ],
+    "keywords": ["julia", "jl", "cell", "code cell", "cell delimiter", "cell marker", "highlight"],
     "activationEvents": [
         "onLanguage:julia"
     ],
@@ -192,7 +182,7 @@
     },
     "devDependencies": {
         "@types/node": "^20.19.30",
-        "@types/vscode": "^1.108.1",
+        "@types/vscode": "^1.60.0",
         "typescript": "^5.9.3"
     },
     "license": "MIT"

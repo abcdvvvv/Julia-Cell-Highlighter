@@ -40,18 +40,14 @@ const DEFAULT_EXCLUDE_PATTERNS = ['**/src/**', '**/test/**', '**/deps/**', '**/d
 const warnedKeys = new Set<string>();
 
 function warnOnce(key: string, message: string): void {
-    if (warnedKeys.has(key)) {
-        return;
-    }
+    if (warnedKeys.has(key)) return;
     warnedKeys.add(key);
     vscode.window.showWarningMessage(message);
 }
 
 function getStringArray(config: vscode.WorkspaceConfiguration, key: string): string[] {
     const raw = config.get<unknown>(key);
-    if (!Array.isArray(raw)) {
-        return [];
-    }
+    if (!Array.isArray(raw)) return [];
     return raw
         .filter((value) => typeof value === 'string')
         .map((value) => value.trim())
@@ -154,7 +150,16 @@ function parseCodeLensMode(value: unknown): CodeLensMode {
     return value === 'always' || value === 'current' || value === 'never' ? value : 'always';
 }
 
+let cachedConfig: HighlighterConfig | null = null;
+
+export function invalidateConfigCache(): void {
+    cachedConfig = null;
+}
+
 export function readConfig(): HighlighterConfig {
+    if (cachedConfig) {
+        return cachedConfig;
+    }
     const config = vscode.workspace.getConfiguration('juliaCellHighlighter');
     const juliaConfig = vscode.workspace.getConfiguration('julia');
 
@@ -202,7 +207,7 @@ export function readConfig(): HighlighterConfig {
     }
 
     if (compiledJulia.regexes.length > 0) {
-        return {
+        cachedConfig = {
             enabled,
             codeLensMode,
             backgroundColor,
@@ -223,6 +228,7 @@ export function readConfig(): HighlighterConfig {
             delimiterKey: `julia|${juliaPatterns.join(';')}`,
             delimiterSource: 'julia'
         };
+        return cachedConfig;
     }
 
     const defaultSelection = parseDefaultDelimiterOptions(config);
@@ -234,7 +240,7 @@ export function readConfig(): HighlighterConfig {
     }
     const defaultPatterns = defaultSelection.options.map((option) => DEFAULT_DELIMITER_PATTERNS[option]);
     const compiledDefault = compileRegexes(defaultPatterns);
-    return {
+    cachedConfig = {
         enabled,
         codeLensMode,
         backgroundColor,
@@ -255,4 +261,5 @@ export function readConfig(): HighlighterConfig {
         delimiterKey: `default|${defaultSelection.options.join(';')}`,
         delimiterSource: 'default'
     };
+    return cachedConfig;
 }

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { computeCellRange, getOrBuildIndex, invalidateIndex, CellIndex } from './cellIndex';
-import { JuliaCellCodeLensProvider, executeJuliaCellAtDelimiter } from './codeLens';
+import { JuliaCellCodeLensProvider, executeJuliaCellAtDelimiter, resetExecuteAvailabilityCache } from './codeLens';
 import {
     clearDecorations,
     disposeDecorations,
@@ -8,7 +8,7 @@ import {
     getDelimiterSeparatorDecorationType,
     getHighlightDecorationType
 } from './decorations';
-import { readConfig } from './config';
+import { invalidateConfigCache, readConfig } from './config';
 import { isDocumentExcluded } from './exclude';
 
 const indexCache = new Map<string, CellIndex>();
@@ -33,14 +33,14 @@ export function activate(context: vscode.ExtensionContext): void {
     const executeCellCommand = vscode.commands.registerCommand(
         'juliaCellHighlighter.executeCellAtDelimiter',
         async (uri: vscode.Uri, line: number) => {
-            await executeJuliaCellAtDelimiter(uri, line, 'execute');
+            await executeJuliaCellAtDelimiter(uri, line, 'execute', indexCache);
         }
     );
 
     const executeCellAndMoveCommand = vscode.commands.registerCommand(
         'juliaCellHighlighter.executeCellAndMoveAtDelimiter',
         async (uri: vscode.Uri, line: number) => {
-            await executeJuliaCellAtDelimiter(uri, line, 'executeAndMove');
+            await executeJuliaCellAtDelimiter(uri, line, 'executeAndMove', indexCache);
         }
     );
 
@@ -69,9 +69,10 @@ export function activate(context: vscode.ExtensionContext): void {
     });
 
     const configDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
-        if (event.affectsConfiguration('juliaCellHighlighter')) {
+        if (event.affectsConfiguration('juliaCellHighlighter') || event.affectsConfiguration('julia.cellDelimiters')) {
             indexCache.clear();
             separatorIndexCache.clear();
+            invalidateConfigCache();
             scheduleUpdate(vscode.window.activeTextEditor, 0);
             codeLensProvider.refresh();
         }
@@ -92,6 +93,11 @@ export function activate(context: vscode.ExtensionContext): void {
         invalidateIndex(separatorIndexCache, document);
     });
 
+    const extensionsDisposable = vscode.extensions.onDidChange(() => {
+        resetExecuteAvailabilityCache();
+        codeLensProvider.refresh();
+    });
+
     context.subscriptions.push(
         toggleCommand,
         executeCellCommand,
@@ -101,7 +107,8 @@ export function activate(context: vscode.ExtensionContext): void {
         editorDisposable,
         configDisposable,
         documentDisposable,
-        closeDisposable
+        closeDisposable,
+        extensionsDisposable
     );
 
     if (vscode.window.activeTextEditor) {
@@ -110,18 +117,10 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {
-    if (selectionTimer) {
-        clearTimeout(selectionTimer);
-    }
-    if (documentTimer) {
-        clearTimeout(documentTimer);
-    }
-    if (codeLensTimer) {
-        clearTimeout(codeLensTimer);
-    }
-    if (lastEditor) {
-        clearDecorations(lastEditor);
-    }
+    if (selectionTimer) clearTimeout(selectionTimer);
+    if (documentTimer) clearTimeout(documentTimer);
+    if (codeLensTimer) clearTimeout(codeLensTimer);
+    if (lastEditor) clearDecorations(lastEditor);
     disposeDecorations();
 }
 
@@ -131,15 +130,11 @@ function scheduleUpdate(editor: vscode.TextEditor | undefined, delayMs: number):
         return;
     }
     if (delayMs === SELECTION_DEBOUNCE_MS) {
-        if (selectionTimer) {
-            clearTimeout(selectionTimer);
-        }
+        if (selectionTimer) clearTimeout(selectionTimer);
         selectionTimer = setTimeout(() => updateHighlighting(editor), delayMs);
         return;
     }
-    if (documentTimer) {
-        clearTimeout(documentTimer);
-    }
+    if (documentTimer) clearTimeout(documentTimer);
     documentTimer = setTimeout(() => updateHighlighting(editor), delayMs);
 }
 
@@ -152,24 +147,18 @@ function scheduleCodeLensRefresh(provider: JuliaCellCodeLensProvider, delayMs: n
         provider.refresh();
         return;
     }
-    if (codeLensTimer) {
-        clearTimeout(codeLensTimer);
-    }
+    if (codeLensTimer) clearTimeout(codeLensTimer);
     codeLensTimer = setTimeout(() => provider.refresh(), delayMs);
 }
 
 function updateHighlighting(editor: vscode.TextEditor | undefined): void {
     if (!editor || editor.document.languageId !== 'julia') {
-        if (lastEditor) {
-            clearDecorations(lastEditor);
-            lastEditor = undefined;
-        }
+        if (lastEditor) clearDecorations(lastEditor);
+        lastEditor = undefined;
         return;
     }
 
-    if (lastEditor && lastEditor !== editor) {
-        clearDecorations(lastEditor);
-    }
+    if (lastEditor && lastEditor !== editor) clearDecorations(lastEditor);
     lastEditor = editor;
 
     const config = readConfig();

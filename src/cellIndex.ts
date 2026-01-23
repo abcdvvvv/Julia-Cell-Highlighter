@@ -29,9 +29,7 @@ export function invalidateIndex(cache: Map<string, CellIndex>, document: vscode.
 }
 
 function buildDelimiterLines(document: vscode.TextDocument, regexes: RegExp[]): number[] {
-    if (regexes.length === 0) {
-        return [];
-    }
+    if (regexes.length === 0) return [];
     const lines: number[] = [];
     for (let line = 0; line < document.lineCount; line += 1) {
         const text = document.lineAt(line).text;

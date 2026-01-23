@@ -57,10 +57,10 @@ function activate(context) {
         scheduleUpdate(vscode.window.activeTextEditor, 0);
     });
     const executeCellCommand = vscode.commands.registerCommand('juliaCellHighlighter.executeCellAtDelimiter', async (uri, line) => {
-        await (0, codeLens_1.executeJuliaCellAtDelimiter)(uri, line, 'execute');
+        await (0, codeLens_1.executeJuliaCellAtDelimiter)(uri, line, 'execute', indexCache);
     });
     const executeCellAndMoveCommand = vscode.commands.registerCommand('juliaCellHighlighter.executeCellAndMoveAtDelimiter', async (uri, line) => {
-        await (0, codeLens_1.executeJuliaCellAtDelimiter)(uri, line, 'executeAndMove');
+        await (0, codeLens_1.executeJuliaCellAtDelimiter)(uri, line, 'executeAndMove', indexCache);
     });
     const codeLensProvider = new codeLens_1.JuliaCellCodeLensProvider(indexCache);
     const codeLensDisposable = vscode.languages.registerCodeLensProvider([{ language: 'julia', scheme: 'file' }, { language: 'julia', scheme: 'untitled' }], codeLensProvider);
@@ -82,9 +82,10 @@ function activate(context) {
         }
     });
     const configDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
-        if (event.affectsConfiguration('juliaCellHighlighter')) {
+        if (event.affectsConfiguration('juliaCellHighlighter') || event.affectsConfiguration('julia.cellDelimiters')) {
             indexCache.clear();
             separatorIndexCache.clear();
+            (0, config_1.invalidateConfigCache)();
             scheduleUpdate(vscode.window.activeTextEditor, 0);
             codeLensProvider.refresh();
         }
@@ -102,24 +103,24 @@ function activate(context) {
         (0, cellIndex_1.invalidateIndex)(indexCache, document);
         (0, cellIndex_1.invalidateIndex)(separatorIndexCache, document);
     });
-    context.subscriptions.push(toggleCommand, executeCellCommand, executeCellAndMoveCommand, codeLensDisposable, selectionDisposable, editorDisposable, configDisposable, documentDisposable, closeDisposable);
+    const extensionsDisposable = vscode.extensions.onDidChange(() => {
+        (0, codeLens_1.resetExecuteAvailabilityCache)();
+        codeLensProvider.refresh();
+    });
+    context.subscriptions.push(toggleCommand, executeCellCommand, executeCellAndMoveCommand, codeLensDisposable, selectionDisposable, editorDisposable, configDisposable, documentDisposable, closeDisposable, extensionsDisposable);
     if (vscode.window.activeTextEditor) {
         scheduleUpdate(vscode.window.activeTextEditor, 0);
     }
 }
 function deactivate() {
-    if (selectionTimer) {
+    if (selectionTimer)
         clearTimeout(selectionTimer);
-    }
-    if (documentTimer) {
+    if (documentTimer)
         clearTimeout(documentTimer);
-    }
-    if (codeLensTimer) {
+    if (codeLensTimer)
         clearTimeout(codeLensTimer);
-    }
-    if (lastEditor) {
+    if (lastEditor)
         (0, decorations_1.clearDecorations)(lastEditor);
-    }
     (0, decorations_1.disposeDecorations)();
 }
 function scheduleUpdate(editor, delayMs) {
@@ -128,15 +129,13 @@ function scheduleUpdate(editor, delayMs) {
         return;
     }
     if (delayMs === SELECTION_DEBOUNCE_MS) {
-        if (selectionTimer) {
+        if (selectionTimer)
             clearTimeout(selectionTimer);
-        }
         selectionTimer = setTimeout(() => updateHighlighting(editor), delayMs);
         return;
     }
-    if (documentTimer) {
+    if (documentTimer)
         clearTimeout(documentTimer);
-    }
     documentTimer = setTimeout(() => updateHighlighting(editor), delayMs);
 }
 function scheduleCodeLensRefresh(provider, delayMs) {
@@ -148,22 +147,19 @@ function scheduleCodeLensRefresh(provider, delayMs) {
         provider.refresh();
         return;
     }
-    if (codeLensTimer) {
+    if (codeLensTimer)
         clearTimeout(codeLensTimer);
-    }
     codeLensTimer = setTimeout(() => provider.refresh(), delayMs);
 }
 function updateHighlighting(editor) {
     if (!editor || editor.document.languageId !== 'julia') {
-        if (lastEditor) {
+        if (lastEditor)
             (0, decorations_1.clearDecorations)(lastEditor);
-            lastEditor = undefined;
-        }
+        lastEditor = undefined;
         return;
     }
-    if (lastEditor && lastEditor !== editor) {
+    if (lastEditor && lastEditor !== editor)
         (0, decorations_1.clearDecorations)(lastEditor);
-    }
     lastEditor = editor;
     const config = (0, config_1.readConfig)();
     if (!config.enabled || (0, exclude_1.isDocumentExcluded)(editor.document, config.excludeMatchers)) {

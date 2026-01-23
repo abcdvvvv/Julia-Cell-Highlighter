@@ -13,6 +13,14 @@ import { isDocumentExcluded } from './exclude';
 const EXECUTE_CELL = 'language-julia.executeCell';
 const EXECUTE_CELL_AND_MOVE = 'language-julia.executeCellAndMove';
 
+let availabilityCache: { hasExecute: boolean; hasExecuteAndMove: boolean } | null = null;
+let availabilityPromise: Promise<{ hasExecute: boolean; hasExecuteAndMove: boolean }> | null = null;
+
+export function resetExecuteAvailabilityCache(): void {
+    availabilityCache = null;
+    availabilityPromise = null;
+}
+
 export class JuliaCellCodeLensProvider implements vscode.CodeLensProvider {
     private readonly emitter = new vscode.EventEmitter<void>();
     public readonly onDidChangeCodeLenses = this.emitter.event;
@@ -67,11 +75,11 @@ export class JuliaCellCodeLensProvider implements vscode.CodeLensProvider {
         }
 
         const lenses: vscode.CodeLens[] = [];
-        for (const line of index.delimLines) {
-            const targetLine = findExecutableLineForDelimiter(index.delimLines, line, document.lineCount);
-            if (targetLine === null) {
+        for (let i = 0; i < index.delimLines.length; i += 1) {
+            if (!hasExecutableLine(index.delimLines, i, document.lineCount)) {
                 continue;
             }
+            const line = index.delimLines[i];
             lenses.push(...buildLensesForLine(document, line, availability.hasExecute, availability.hasExecuteAndMove));
         }
 
@@ -131,7 +139,8 @@ function buildLensesForLine(
 export async function executeJuliaCellAtDelimiter(
     uri: vscode.Uri,
     delimiterLine: number,
-    mode: 'execute' | 'executeAndMove'
+    mode: 'execute' | 'executeAndMove',
+    indexCache: Map<string, CellIndex>
 ): Promise<void> {
     const availability = await getExecuteAvailability();
     if (!ensureCommandAvailable(mode, availability)) {
@@ -143,7 +152,7 @@ export async function executeJuliaCellAtDelimiter(
     if (isDocumentExcluded(document, config.excludeMatchers)) {
         return;
     }
-    const index = getOrBuildIndex(new Map(), document, config.delimiterRegexes, config.delimiterKey);
+    const index = getOrBuildIndex(indexCache, document, config.delimiterRegexes, config.delimiterKey);
     const targetLine = findExecutableLineForDelimiter(index.delimLines, delimiterLine, document.lineCount);
     if (targetLine === null) {
         return;
@@ -175,11 +184,41 @@ function delay(ms: number): Promise<void> {
 }
 
 async function getExecuteAvailability(): Promise<{ hasExecute: boolean; hasExecuteAndMove: boolean }> {
-    const commands = await vscode.commands.getCommands(true);
-    return {
-        hasExecute: commands.includes(EXECUTE_CELL),
-        hasExecuteAndMove: commands.includes(EXECUTE_CELL_AND_MOVE)
-    };
+    if (availabilityCache) {
+        return availabilityCache;
+    }
+    if (!availabilityPromise) {
+        availabilityPromise = (async () => {
+            const commands = await vscode.commands.getCommands(true);
+            availabilityCache = {
+                hasExecute: commands.includes(EXECUTE_CELL),
+                hasExecuteAndMove: commands.includes(EXECUTE_CELL_AND_MOVE)
+            };
+            return availabilityCache;
+        })();
+    }
+    try {
+        return await availabilityPromise;
+    } finally {
+        availabilityPromise = null;
+    }
+}
+
+function hasExecutableLine(delimLines: number[], index: number, lineCount: number): boolean {
+    const delimiterLine = delimLines[index];
+    const next = index + 1 < delimLines.length ? delimLines[index + 1] : undefined;
+    const startAfter = delimiterLine + 1;
+    const endAfter = next !== undefined ? next - 1 : lineCount - 1;
+    if (startAfter <= endAfter) {
+        return true;
+    }
+    const prev = index > 0 ? delimLines[index - 1] : undefined;
+    if (prev === undefined) {
+        return false;
+    }
+    const prevStart = prev + 1;
+    const prevEnd = delimiterLine - 1;
+    return prevStart <= prevEnd;
 }
 
 function ensureCommandAvailable(

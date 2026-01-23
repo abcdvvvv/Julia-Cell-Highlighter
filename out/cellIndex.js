@@ -55,9 +55,8 @@ function invalidateIndex(cache, document) {
     cache.delete(document.uri.toString());
 }
 function buildDelimiterLines(document, regexes) {
-    if (regexes.length === 0) {
+    if (regexes.length === 0)
         return [];
-    }
     const lines = [];
     for (let line = 0; line < document.lineCount; line += 1) {
         const text = document.lineAt(line).text;

@@ -97,21 +97,16 @@ function getDelimiterSeparatorDecorationType(color, width) {
     return delimiterSeparatorDecoration;
 }
 function clearDecorations(editor) {
-    if (!editor) {
+    if (!editor)
         return;
-    }
-    if (highlightDecoration) {
+    if (highlightDecoration)
         editor.setDecorations(highlightDecoration, []);
-    }
-    if (topBorderDecoration) {
+    if (topBorderDecoration)
         editor.setDecorations(topBorderDecoration, []);
-    }
-    if (bottomBorderDecoration) {
+    if (bottomBorderDecoration)
         editor.setDecorations(bottomBorderDecoration, []);
-    }
-    if (delimiterSeparatorDecoration) {
+    if (delimiterSeparatorDecoration)
         editor.setDecorations(delimiterSeparatorDecoration, []);
-    }
 }
 function disposeDecorations() {
     highlightDecoration?.dispose();
