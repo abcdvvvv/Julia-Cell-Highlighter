@@ -1,0 +1,199 @@
+{
+    "name": "julia-cell-highlighter",
+    "displayName": "Julia Cell Highlighter",
+    "publisher": "ShakiraChristian",
+    "description": "Highlights the current Julia code cell in .jl scripts, aligned with Julia cell delimiters",
+    "version": "0.1.0",
+    "icon": "icon.png",
+    "engines": { "vscode": "^1.108.0" },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/abcdvvvv/julia-cell-highlighter.git"
+    },
+    "homepage": "https://github.com/abcdvvvv/julia-cell-highlighter#readme",
+    "bugs": {
+        "url": "https://github.com/abcdvvvv/julia-cell-highlighter/issues"
+    },
+    "categories": [
+        "Programming Languages",
+        "Visualization"
+    ],
+    "keywords": [
+        "julia",
+        "jl",
+        "cell",
+        "code cell",
+        "cell delimiter",
+        "cell marker",
+        "highlight"
+    ],
+    "activationEvents": [
+        "onLanguage:julia"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "configuration": {
+            "title": "Julia Cell Highlighter",
+            "properties": {
+                "juliaCellHighlighter.enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable Julia cell highlighting."
+                },
+                "juliaCellHighlighter.codeLensMode": {
+                    "type": "string",
+                    "enum": [
+                        "always",
+                        "current",
+                        "never"
+                    ],
+                    "default": "always",
+                    "description": "CodeLens display mode: always show, only show for the current cell, or never show."
+                },
+                "juliaCellHighlighter.backgroundColor": {
+                    "type": "string",
+                    "default": "rgba(100, 150, 255, 0.06)",
+                    "description": "Background color for the current cell."
+                },
+                "juliaCellHighlighter.borderColor": {
+                    "type": "string",
+                    "default": "rgba(100, 150, 255, 0.6)",
+                    "description": "Color for the top and bottom border lines."
+                },
+                "juliaCellHighlighter.topBorderWidth": {
+                    "type": "string",
+                    "default": "2px",
+                    "description": "Border width for the top line of the highlighted cell."
+                },
+                "juliaCellHighlighter.bottomBorderWidth": {
+                    "type": "string",
+                    "default": "1px",
+                    "description": "Border width for the bottom line of the highlighted cell."
+                },
+                "juliaCellHighlighter.showDelimiterSeparator": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show a separator line above each cell delimiter."
+                },
+                "juliaCellHighlighter.delimiterSeparatorColor": {
+                    "type": "string",
+                    "default": "#ffffff",
+                    "description": "Color of the delimiter separator line."
+                },
+                "juliaCellHighlighter.delimiterSeparatorWidth": {
+                    "type": "string",
+                    "default": "1px",
+                    "description": "Thickness of the delimiter separator line."
+                },
+                "juliaCellHighlighter.separatorDelimiters": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "^##(?!#)",
+                        "^#%%",
+                        "^#\\s+%%"
+                    ],
+                    "description": "Regex list for separator lines. Defaults to the three Julia cell delimiters."
+                },
+                "juliaCellHighlighter.excludePatterns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "**/src/**",
+                        "**/test/**",
+                        "**/deps/**",
+                        "**/docs/**"
+                    ],
+                    "description": "Glob patterns to exclude from cell highlighting and CodeLens (separator lines still apply)."
+                },
+                "juliaCellHighlighter.includeDelimiterLine": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Include the delimiter line in the highlighted range."
+                },
+                "juliaCellHighlighter.highlightWhenNoDelimiter": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "file"
+                    ],
+                    "default": "none",
+                    "description": "Behavior when no delimiters are found: 'none' disables highlighting, 'file' highlights the entire file."
+                },
+                "juliaCellHighlighter.cursorOnDelimiterBehavior": {
+                    "type": "string",
+                    "enum": [
+                        "next",
+                        "previous",
+                        "none"
+                    ],
+                    "default": "next",
+                    "description": "When the cursor is on a delimiter line, choose which cell to highlight."
+                },
+                "juliaCellHighlighter.defaultDelimiters": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "##",
+                            "#%%",
+                            "# %%"
+                        ]
+                    },
+                    "default": [
+                        "##",
+                        "#%%",
+                        "# %%"
+                    ],
+                    "description": "Enabled built-in delimiters for cell highlighting/execution."
+                },
+                "juliaCellHighlighter.multiCursorMode": {
+                    "type": "string",
+                    "enum": [
+                        "primary",
+                        "union",
+                        "first"
+                    ],
+                    "default": "primary",
+                    "description": "How to choose cells when multiple cursors are active."
+                }
+            }
+        },
+        "commands": [
+            {
+                "command": "juliaCellHighlighter.toggleHighlighting",
+                "title": "Julia Cell Highlighter: Toggle"
+            },
+            {
+                "command": "juliaCellHighlighter.executeCellAtDelimiter",
+                "title": "Julia Cell Highlighter: Run Cell"
+            },
+            {
+                "command": "juliaCellHighlighter.executeCellAndMoveAtDelimiter",
+                "title": "Julia Cell Highlighter: Run Cell and Move"
+            }
+        ],
+        "keybindings": [
+            {
+                "command": "juliaCellHighlighter.toggleHighlighting",
+                "key": "ctrl+shift+h",
+                "mac": "cmd+shift+h",
+                "when": "editorLangId == julia"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ."
+    },
+    "devDependencies": {
+        "@types/node": "^20.19.30",
+        "@types/vscode": "^1.108.1",
+        "typescript": "^5.9.3"
+    },
+    "license": "MIT"
+}

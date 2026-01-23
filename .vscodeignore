@@ -1,0 +1,9 @@
+sample_code/**
+src/**
+**/*.ts
+.github/**
+node_modules/**
+test/**
+tests/**
+images/icon.drawio
+images/.$icon.drawio.bkp
