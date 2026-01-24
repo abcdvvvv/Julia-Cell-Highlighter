@@ -4,7 +4,14 @@ All notable changes to the "julia-cell-highlighter" extension will be documented
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## [Unreleased]
+## [0.1.2] - 2026-01-24
+
+### Changed
+- Delete Run Cell commands from the command palette.
+- Add bounded exponential backoff when Julia commands are not yet available (max interval 60s, max attempts 8).
+
+### Fixed
+- CodeLens now recovers when the Julia extension activates after the editor opens.
 
 ## [0.1.1] - 2026-01-23
 
@@ -18,6 +25,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/abcdvvvv/julia-cell-highlighter/releases/tag/v0.1.0

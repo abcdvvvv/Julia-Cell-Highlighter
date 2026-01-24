@@ -42,6 +42,9 @@ const config_1 = require("./config");
 const exclude_1 = require("./exclude");
 const EXECUTE_CELL = 'language-julia.executeCell';
 const EXECUTE_CELL_AND_MOVE = 'language-julia.executeCellAndMove';
+const AVAILABILITY_RETRY_BASE_MS = 500;
+const AVAILABILITY_RETRY_MAX_MS = 60000;
+const AVAILABILITY_RETRY_MAX_ATTEMPTS = 8;
 let availabilityCache = null;
 let availabilityPromise = null;
 function resetExecuteAvailabilityCache() {
@@ -52,72 +55,84 @@ class JuliaCellCodeLensProvider {
     constructor(indexCache) {
         this.indexCache = indexCache;
         this.emitter = new vscode.EventEmitter();
+        this.availabilityRetryDelayMs = AVAILABILITY_RETRY_BASE_MS;
+        this.availabilityRetryAttempts = 0;
         this.onDidChangeCodeLenses = this.emitter.event;
     }
     refresh() {
         this.emitter.fire();
     }
     async provideCodeLenses(document) {
-        if (document.languageId !== 'julia') {
+        if (document.languageId !== 'julia')
             return [];
-        }
         const config = (0, config_1.readConfig)();
-        if (config.codeLensMode === 'never') {
+        if (config.codeLensMode === 'never')
             return [];
-        }
-        if ((0, exclude_1.isDocumentExcluded)(document, config.excludeMatchers)) {
+        if ((0, exclude_1.isDocumentExcluded)(document, config.excludeMatchers))
             return [];
-        }
         const availability = await getExecuteAvailability();
         if (!availability.hasExecute && !availability.hasExecuteAndMove) {
+            this.scheduleAvailabilityRetry();
             return [];
         }
         const index = (0, cellIndex_1.getOrBuildIndex)(this.indexCache, document, config.delimiterRegexes, config.delimiterKey);
-        if (index.delimLines.length === 0) {
+        if (index.delimLines.length === 0)
             return [];
-        }
         if (config.codeLensMode === 'current') {
             const activeEditor = vscode.window.activeTextEditor;
-            if (!activeEditor || activeEditor.document.uri.toString() !== document.uri.toString()) {
+            if (!activeEditor || activeEditor.document.uri.toString() !== document.uri.toString())
                 return [];
-            }
             const range = (0, cellIndex_1.computeCellRange)(document, index.delimLines, config, activeEditor.selection.active.line);
-            if (!range) {
+            if (!range)
                 return [];
-            }
             const delimiterLine = (0, cellIndex_1.findDelimiterLineForRange)(index.delimLines, range.start.line);
-            if (delimiterLine === null) {
+            if (delimiterLine === null)
                 return [];
-            }
             return buildLensesForLine(document, delimiterLine, availability.hasExecute, availability.hasExecuteAndMove);
         }
         const lenses = [];
         for (let i = 0; i < index.delimLines.length; i += 1) {
-            if (!hasExecutableLine(index.delimLines, i, document.lineCount)) {
+            if (!hasExecutableLine(index.delimLines, i, document.lineCount))
                 continue;
-            }
             const line = index.delimLines[i];
             lenses.push(...buildLensesForLine(document, line, availability.hasExecute, availability.hasExecuteAndMove));
         }
         return lenses;
     }
+    scheduleAvailabilityRetry() {
+        if (this.availabilityRetryTimer)
+            return;
+        if (this.availabilityRetryAttempts >= AVAILABILITY_RETRY_MAX_ATTEMPTS)
+            return;
+        this.availabilityRetryAttempts += 1;
+        this.availabilityRetryTimer = setTimeout(async () => {
+            this.availabilityRetryTimer = undefined;
+            resetExecuteAvailabilityCache();
+            const availability = await getExecuteAvailability();
+            if (availability.hasExecute || availability.hasExecuteAndMove) {
+                this.availabilityRetryDelayMs = AVAILABILITY_RETRY_BASE_MS;
+                this.availabilityRetryAttempts = 0;
+                this.emitter.fire();
+                return;
+            }
+            this.availabilityRetryDelayMs = Math.min(this.availabilityRetryDelayMs * 2, AVAILABILITY_RETRY_MAX_MS);
+            this.scheduleAvailabilityRetry();
+        }, this.availabilityRetryDelayMs);
+    }
 }
 exports.JuliaCellCodeLensProvider = JuliaCellCodeLensProvider;
 function findExecutableLineForDelimiter(delimLines, delimiterLine, lineCount) {
     const idx = (0, cellIndex_1.lowerBound)(delimLines, delimiterLine);
-    if (idx >= delimLines.length || delimLines[idx] !== delimiterLine) {
+    if (idx >= delimLines.length || delimLines[idx] !== delimiterLine)
         return null;
-    }
     const next = idx + 1 < delimLines.length ? delimLines[idx + 1] : undefined;
     const start = delimiterLine + 1;
     const end = next !== undefined ? next - 1 : lineCount - 1;
-    if (start <= end) {
+    if (start <= end)
         return start;
-    }
     const prev = idx > 0 ? delimLines[idx - 1] : undefined;
-    if (prev === undefined) {
+    if (prev === undefined)
         return null;
-    }
     const prevStart = prev + 1;
     const prevEnd = delimiterLine - 1;
     return prevStart <= prevEnd ? prevStart : null;
@@ -143,19 +158,16 @@ function buildLensesForLine(document, line, hasExecute, hasExecuteAndMove) {
 }
 async function executeJuliaCellAtDelimiter(uri, delimiterLine, mode, indexCache) {
     const availability = await getExecuteAvailability();
-    if (!ensureCommandAvailable(mode, availability)) {
+    if (!ensureCommandAvailable(mode, availability))
         return;
-    }
     const document = await vscode.workspace.openTextDocument(uri);
     const config = (0, config_1.readConfig)();
-    if ((0, exclude_1.isDocumentExcluded)(document, config.excludeMatchers)) {
+    if ((0, exclude_1.isDocumentExcluded)(document, config.excludeMatchers))
         return;
-    }
     const index = (0, cellIndex_1.getOrBuildIndex)(indexCache, document, config.delimiterRegexes, config.delimiterKey);
     const targetLine = findExecutableLineForDelimiter(index.delimLines, delimiterLine, document.lineCount);
-    if (targetLine === null) {
+    if (targetLine === null)
         return;
-    }
     const editor = await vscode.window.showTextDocument(document, { preserveFocus: false, preview: true });
     const position = new vscode.Position(targetLine, 0);
     editor.selection = new vscode.Selection(position, position);
@@ -166,21 +178,20 @@ async function executeJuliaCellAtDelimiter(uri, delimiterLine, mode, indexCache)
     await vscode.commands.executeCommand(execCommand);
     if (mode === 'executeAndMove' && availability.hasExecute) {
         const nextDelimiter = (0, cellIndex_1.findNextDelimiterLine)(index.delimLines, delimiterLine);
-        if (nextDelimiter !== null) {
-            await delay(150);
-            const nextPosition = new vscode.Position(nextDelimiter, 0);
-            editor.selection = new vscode.Selection(nextPosition, nextPosition);
-            editor.revealRange(new vscode.Range(nextPosition, nextPosition));
-        }
+        if (nextDelimiter === null)
+            return;
+        await delay(150);
+        const nextPosition = new vscode.Position(nextDelimiter, 0);
+        editor.selection = new vscode.Selection(nextPosition, nextPosition);
+        editor.revealRange(new vscode.Range(nextPosition, nextPosition));
     }
 }
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 async function getExecuteAvailability() {
-    if (availabilityCache) {
+    if (availabilityCache)
         return availabilityCache;
-    }
     if (!availabilityPromise) {
         availabilityPromise = (async () => {
             const commands = await vscode.commands.getCommands(true);
@@ -203,13 +214,11 @@ function hasExecutableLine(delimLines, index, lineCount) {
     const next = index + 1 < delimLines.length ? delimLines[index + 1] : undefined;
     const startAfter = delimiterLine + 1;
     const endAfter = next !== undefined ? next - 1 : lineCount - 1;
-    if (startAfter <= endAfter) {
+    if (startAfter <= endAfter)
         return true;
-    }
     const prev = index > 0 ? delimLines[index - 1] : undefined;
-    if (prev === undefined) {
+    if (prev === undefined)
         return false;
-    }
     const prevStart = prev + 1;
     const prevEnd = delimiterLine - 1;
     return prevStart <= prevEnd;
