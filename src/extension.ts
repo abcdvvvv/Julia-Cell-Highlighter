@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import { computeCellRange, getOrBuildIndex, invalidateIndex, CellIndex } from './cellIndex';
 import { JuliaCellCodeLensProvider, executeJuliaCellAtDelimiter, resetExecuteAvailabilityCache } from './codeLens';
 import {
-    clearDecorations,
+    clearHighlightDecorations,
+    clearSeparatorDecorations,
     disposeDecorations,
     getBorderDecorationTypes,
     getDelimiterSeparatorDecorationType,
@@ -17,6 +18,7 @@ const separatorIndexCache = new Map<string, CellIndex>();
 let selectionTimer: NodeJS.Timeout | undefined;
 let documentTimer: NodeJS.Timeout | undefined;
 let codeLensTimer: NodeJS.Timeout | undefined;
+let separatorTimer: NodeJS.Timeout | undefined;
 let lastEditor: vscode.TextEditor | undefined;
 
 const SELECTION_DEBOUNCE_MS = 50;
@@ -62,8 +64,10 @@ export function activate(context: vscode.ExtensionContext): void {
         if (editor) {
             scheduleUpdate(editor, 0);
             scheduleCodeLensRefresh(codeLensProvider, 0);
+            scheduleSeparatorRefresh(editor, 0);
         } else if (lastEditor) {
-            clearDecorations(lastEditor);
+            clearHighlightDecorations(lastEditor);
+            clearSeparatorDecorations(lastEditor);
             lastEditor = undefined;
         }
     });
@@ -75,6 +79,9 @@ export function activate(context: vscode.ExtensionContext): void {
             invalidateConfigCache();
             scheduleUpdate(vscode.window.activeTextEditor, 0);
             codeLensProvider.refresh();
+            if (vscode.window.activeTextEditor) {
+                scheduleSeparatorRefresh(vscode.window.activeTextEditor, 0);
+            }
         }
     });
 
@@ -86,6 +93,9 @@ export function activate(context: vscode.ExtensionContext): void {
         invalidateIndex(separatorIndexCache, event.document);
         scheduleUpdate(vscode.window.activeTextEditor, DOCUMENT_DEBOUNCE_MS);
         codeLensProvider.refresh();
+        if (vscode.window.activeTextEditor) {
+            scheduleSeparatorRefresh(vscode.window.activeTextEditor, DOCUMENT_DEBOUNCE_MS);
+        }
     });
 
     const closeDisposable = vscode.workspace.onDidCloseTextDocument((document) => {
@@ -113,6 +123,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     if (vscode.window.activeTextEditor) {
         scheduleUpdate(vscode.window.activeTextEditor, 0);
+        scheduleSeparatorRefresh(vscode.window.activeTextEditor, 0);
     }
 }
 
@@ -120,7 +131,11 @@ export function deactivate(): void {
     if (selectionTimer) clearTimeout(selectionTimer);
     if (documentTimer) clearTimeout(documentTimer);
     if (codeLensTimer) clearTimeout(codeLensTimer);
-    if (lastEditor) clearDecorations(lastEditor);
+    if (separatorTimer) clearTimeout(separatorTimer);
+    if (lastEditor) {
+        clearHighlightDecorations(lastEditor);
+        clearSeparatorDecorations(lastEditor);
+    }
     disposeDecorations();
 }
 
@@ -151,26 +166,35 @@ function scheduleCodeLensRefresh(provider: JuliaCellCodeLensProvider, delayMs: n
     codeLensTimer = setTimeout(() => provider.refresh(), delayMs);
 }
 
+function scheduleSeparatorRefresh(editor: vscode.TextEditor, delayMs: number): void {
+    if (delayMs <= 0) {
+        refreshSeparatorLines(editor);
+        return;
+    }
+    if (separatorTimer) clearTimeout(separatorTimer);
+    separatorTimer = setTimeout(() => refreshSeparatorLines(editor), delayMs);
+}
+
 function updateHighlighting(editor: vscode.TextEditor | undefined): void {
     if (!editor || editor.document.languageId !== 'julia') {
-        if (lastEditor) clearDecorations(lastEditor);
+        if (lastEditor) clearHighlightDecorations(lastEditor);
         lastEditor = undefined;
         return;
     }
 
-    if (lastEditor && lastEditor !== editor) clearDecorations(lastEditor);
+    if (lastEditor && lastEditor !== editor) clearHighlightDecorations(lastEditor);
     lastEditor = editor;
 
     const config = readConfig();
     if (!config.enabled || isDocumentExcluded(editor.document, config.excludeMatchers)) {
-        exitWithSeparators(editor, config);
+        clearHighlightDecorations(editor);
         return;
     }
 
     const index = getOrBuildIndex(indexCache, editor.document, config.delimiterRegexes, config.delimiterKey);
     const ranges = computeRanges(editor, index, config);
     if (ranges.length === 0) {
-        exitWithSeparators(editor, config);
+        clearHighlightDecorations(editor);
         return;
     }
 
@@ -187,7 +211,7 @@ function updateHighlighting(editor: vscode.TextEditor | undefined): void {
     editor.setDecorations(top, topRanges);
     editor.setDecorations(bottom, bottomRanges);
 
-    applyDelimiterSeparators(editor, config);
+    // Separator lines are refreshed separately to avoid updates on cursor moves.
 }
 
 function computeRanges(
@@ -247,11 +271,11 @@ function lineRange(document: vscode.TextDocument, line: number): vscode.Range {
     return new vscode.Range(new vscode.Position(line, 0), document.lineAt(line).range.end);
 }
 
-function applyDelimiterSeparators(
-    editor: vscode.TextEditor,
-    config: ReturnType<typeof readConfig>
-): void {
+function refreshSeparatorLines(editor: vscode.TextEditor): void {
+    if (editor.document.languageId !== 'julia') return;
+    const config = readConfig();
     if (!config.showDelimiterSeparator) {
+        clearSeparatorDecorations(editor);
         return;
     }
     const separatorIndex = getOrBuildIndex(
@@ -261,6 +285,7 @@ function applyDelimiterSeparators(
         config.separatorDelimiterKey
     );
     if (separatorIndex.delimLines.length === 0) {
+        clearSeparatorDecorations(editor);
         return;
     }
     const decoration = getDelimiterSeparatorDecorationType(
@@ -269,11 +294,4 @@ function applyDelimiterSeparators(
     );
     const ranges = separatorIndex.delimLines.map((line) => lineRange(editor.document, line));
     editor.setDecorations(decoration, ranges);
-}
-
-function exitWithSeparators(editor: vscode.TextEditor, config: ReturnType<typeof readConfig>): void {
-    clearDecorations(editor);
-    if (config.showDelimiterSeparator) {
-        applyDelimiterSeparators(editor, config);
-    }
 }

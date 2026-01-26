@@ -4,6 +4,15 @@ All notable changes to the "julia-cell-highlighter" extension will be documented
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.1.3] - 2026-01-26
+
+### Changed
+- Decouple separator refresh scheduling from cell highlighting refresh.
+- Stop refreshing separator lines on cursor moves.
+
+### Fixed
+- Separator lines no longer refresh in non-Julia files.
+
 ## [0.1.2] - 2026-01-24
 
 ### Changed
@@ -25,7 +34,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/abcdvvvv/julia-cell-highlighter/releases/tag/v0.1.0

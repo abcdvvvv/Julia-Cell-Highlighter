@@ -69,11 +69,15 @@ export function getDelimiterSeparatorDecorationType(
     return delimiterSeparatorDecoration;
 }
 
-export function clearDecorations(editor: vscode.TextEditor | undefined): void {
+export function clearHighlightDecorations(editor: vscode.TextEditor | undefined): void {
     if (!editor) return;
     if (highlightDecoration) editor.setDecorations(highlightDecoration, []);
     if (topBorderDecoration) editor.setDecorations(topBorderDecoration, []);
     if (bottomBorderDecoration) editor.setDecorations(bottomBorderDecoration, []);
+}
+
+export function clearSeparatorDecorations(editor: vscode.TextEditor | undefined): void {
+    if (!editor) return;
     if (delimiterSeparatorDecoration) editor.setDecorations(delimiterSeparatorDecoration, []);
 }
 

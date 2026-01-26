@@ -46,6 +46,7 @@ const separatorIndexCache = new Map();
 let selectionTimer;
 let documentTimer;
 let codeLensTimer;
+let separatorTimer;
 let lastEditor;
 const SELECTION_DEBOUNCE_MS = 50;
 const DOCUMENT_DEBOUNCE_MS = 200;
@@ -75,9 +76,11 @@ function activate(context) {
         if (editor) {
             scheduleUpdate(editor, 0);
             scheduleCodeLensRefresh(codeLensProvider, 0);
+            scheduleSeparatorRefresh(editor, 0);
         }
         else if (lastEditor) {
-            (0, decorations_1.clearDecorations)(lastEditor);
+            (0, decorations_1.clearHighlightDecorations)(lastEditor);
+            (0, decorations_1.clearSeparatorDecorations)(lastEditor);
             lastEditor = undefined;
         }
     });
@@ -88,6 +91,9 @@ function activate(context) {
             (0, config_1.invalidateConfigCache)();
             scheduleUpdate(vscode.window.activeTextEditor, 0);
             codeLensProvider.refresh();
+            if (vscode.window.activeTextEditor) {
+                scheduleSeparatorRefresh(vscode.window.activeTextEditor, 0);
+            }
         }
     });
     const documentDisposable = vscode.workspace.onDidChangeTextDocument((event) => {
@@ -98,6 +104,9 @@ function activate(context) {
         (0, cellIndex_1.invalidateIndex)(separatorIndexCache, event.document);
         scheduleUpdate(vscode.window.activeTextEditor, DOCUMENT_DEBOUNCE_MS);
         codeLensProvider.refresh();
+        if (vscode.window.activeTextEditor) {
+            scheduleSeparatorRefresh(vscode.window.activeTextEditor, DOCUMENT_DEBOUNCE_MS);
+        }
     });
     const closeDisposable = vscode.workspace.onDidCloseTextDocument((document) => {
         (0, cellIndex_1.invalidateIndex)(indexCache, document);
@@ -110,6 +119,7 @@ function activate(context) {
     context.subscriptions.push(toggleCommand, executeCellCommand, executeCellAndMoveCommand, codeLensDisposable, selectionDisposable, editorDisposable, configDisposable, documentDisposable, closeDisposable, extensionsDisposable);
     if (vscode.window.activeTextEditor) {
         scheduleUpdate(vscode.window.activeTextEditor, 0);
+        scheduleSeparatorRefresh(vscode.window.activeTextEditor, 0);
     }
 }
 function deactivate() {
@@ -119,8 +129,12 @@ function deactivate() {
         clearTimeout(documentTimer);
     if (codeLensTimer)
         clearTimeout(codeLensTimer);
-    if (lastEditor)
-        (0, decorations_1.clearDecorations)(lastEditor);
+    if (separatorTimer)
+        clearTimeout(separatorTimer);
+    if (lastEditor) {
+        (0, decorations_1.clearHighlightDecorations)(lastEditor);
+        (0, decorations_1.clearSeparatorDecorations)(lastEditor);
+    }
     (0, decorations_1.disposeDecorations)();
 }
 function scheduleUpdate(editor, delayMs) {
@@ -151,25 +165,34 @@ function scheduleCodeLensRefresh(provider, delayMs) {
         clearTimeout(codeLensTimer);
     codeLensTimer = setTimeout(() => provider.refresh(), delayMs);
 }
+function scheduleSeparatorRefresh(editor, delayMs) {
+    if (delayMs <= 0) {
+        refreshSeparatorLines(editor);
+        return;
+    }
+    if (separatorTimer)
+        clearTimeout(separatorTimer);
+    separatorTimer = setTimeout(() => refreshSeparatorLines(editor), delayMs);
+}
 function updateHighlighting(editor) {
     if (!editor || editor.document.languageId !== 'julia') {
         if (lastEditor)
-            (0, decorations_1.clearDecorations)(lastEditor);
+            (0, decorations_1.clearHighlightDecorations)(lastEditor);
         lastEditor = undefined;
         return;
     }
     if (lastEditor && lastEditor !== editor)
-        (0, decorations_1.clearDecorations)(lastEditor);
+        (0, decorations_1.clearHighlightDecorations)(lastEditor);
     lastEditor = editor;
     const config = (0, config_1.readConfig)();
     if (!config.enabled || (0, exclude_1.isDocumentExcluded)(editor.document, config.excludeMatchers)) {
-        exitWithSeparators(editor, config);
+        (0, decorations_1.clearHighlightDecorations)(editor);
         return;
     }
     const index = (0, cellIndex_1.getOrBuildIndex)(indexCache, editor.document, config.delimiterRegexes, config.delimiterKey);
     const ranges = computeRanges(editor, index, config);
     if (ranges.length === 0) {
-        exitWithSeparators(editor, config);
+        (0, decorations_1.clearHighlightDecorations)(editor);
         return;
     }
     const decoration = (0, decorations_1.getHighlightDecorationType)(config.backgroundColor);
@@ -179,7 +202,7 @@ function updateHighlighting(editor) {
     const bottomRanges = ranges.map((range) => lineRange(editor.document, range.end.line));
     editor.setDecorations(top, topRanges);
     editor.setDecorations(bottom, bottomRanges);
-    applyDelimiterSeparators(editor, config);
+    // Separator lines are refreshed separately to avoid updates on cursor moves.
 }
 function computeRanges(editor, index, config) {
     const selections = editor.selections;
@@ -227,22 +250,21 @@ function mergeRanges(ranges) {
 function lineRange(document, line) {
     return new vscode.Range(new vscode.Position(line, 0), document.lineAt(line).range.end);
 }
-function applyDelimiterSeparators(editor, config) {
+function refreshSeparatorLines(editor) {
+    if (editor.document.languageId !== 'julia')
+        return;
+    const config = (0, config_1.readConfig)();
     if (!config.showDelimiterSeparator) {
+        (0, decorations_1.clearSeparatorDecorations)(editor);
         return;
     }
     const separatorIndex = (0, cellIndex_1.getOrBuildIndex)(separatorIndexCache, editor.document, config.separatorDelimiterRegexes, config.separatorDelimiterKey);
     if (separatorIndex.delimLines.length === 0) {
+        (0, decorations_1.clearSeparatorDecorations)(editor);
         return;
     }
     const decoration = (0, decorations_1.getDelimiterSeparatorDecorationType)(config.delimiterSeparatorColor, config.delimiterSeparatorWidth);
     const ranges = separatorIndex.delimLines.map((line) => lineRange(editor.document, line));
     editor.setDecorations(decoration, ranges);
-}
-function exitWithSeparators(editor, config) {
-    (0, decorations_1.clearDecorations)(editor);
-    if (config.showDelimiterSeparator) {
-        applyDelimiterSeparators(editor, config);
-    }
 }
 //# sourceMappingURL=extension.js.map

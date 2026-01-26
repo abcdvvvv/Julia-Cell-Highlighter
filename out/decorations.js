@@ -36,7 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getHighlightDecorationType = getHighlightDecorationType;
 exports.getBorderDecorationTypes = getBorderDecorationTypes;
 exports.getDelimiterSeparatorDecorationType = getDelimiterSeparatorDecorationType;
-exports.clearDecorations = clearDecorations;
+exports.clearHighlightDecorations = clearHighlightDecorations;
+exports.clearSeparatorDecorations = clearSeparatorDecorations;
 exports.disposeDecorations = disposeDecorations;
 const vscode = __importStar(require("vscode"));
 let highlightDecoration = null;
@@ -96,7 +97,7 @@ function getDelimiterSeparatorDecorationType(color, width) {
     });
     return delimiterSeparatorDecoration;
 }
-function clearDecorations(editor) {
+function clearHighlightDecorations(editor) {
     if (!editor)
         return;
     if (highlightDecoration)
@@ -105,6 +106,10 @@ function clearDecorations(editor) {
         editor.setDecorations(topBorderDecoration, []);
     if (bottomBorderDecoration)
         editor.setDecorations(bottomBorderDecoration, []);
+}
+function clearSeparatorDecorations(editor) {
+    if (!editor)
+        return;
     if (delimiterSeparatorDecoration)
         editor.setDecorations(delimiterSeparatorDecoration, []);
 }
