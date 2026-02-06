@@ -4,8 +4,14 @@ A VS Code extension that highlights the current Julia code cell in `.jl` files a
 
 ![Full view](images/full.png)
 
-Theme: [Shakira Warm Spectrum](https://github.com/abcdvvvv/shakira-warm-spectrum), Font: [Maple Mono](https://github.com/subframe7536/maple-font),
-Delimiter line bolding: [Highlight](https://github.com/fabiospampinato/vscode-highlight)
+> [!NOTE]
+> Although the official Julia extension has provided CodeLens buttons since 1.178.0, the following features are still unique to this extension:
+> - Custom highlight block styling, including top border style, fill color, and bottom border style
+> - An independent separator line feature
+> - Cell delimiters can be customized via `juliaCellHighlighter.defaultDelimiters`, and are not limited to `##`, `#%%`, and `# %%`
+> - An exclude list controls where CodeLens buttons appear
+>
+> You can disable this extension's buttons by adding `"juliaCellHighlighter.codeLensMode": "never"` to `settings.json`.
 
 ## Quick Start
 
