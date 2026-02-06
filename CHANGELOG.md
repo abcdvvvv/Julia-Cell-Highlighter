@@ -4,6 +4,11 @@ All notable changes to the "julia-cell-highlighter" extension will be documented
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.1.4] - 2026-02-06
+
+### Changed
+- Documentation: update README.
+
 ## [0.1.3] - 2026-01-26
 
 ### Changed
@@ -34,7 +39,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ### Added
 - Initial release.
 
-[Unreleased]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/abcdvvvv/julia-cell-highlighter/compare/v0.1.0...v0.1.1

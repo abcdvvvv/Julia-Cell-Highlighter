@@ -3,7 +3,7 @@
     "displayName": "Julia Cell Highlighter",
     "publisher": "ShakiraChristian",
     "description": "Highlights the current Julia code cell in .jl scripts, aligned with Julia cell delimiters",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "icon": "icon.png",
     "engines": { "vscode": "^1.60.0" },
     "repository": {
